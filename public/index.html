@@ -1,1 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BatePapo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg: #0d0d0f;
+      --surface: #141416;
+      --border: #2a2a30;
+      --accent: #c8f060;
+      --accent2: #60c8f0;
+      --text: #e8e8ec;
+      --muted: #666670;
+      --me-bubble: #1e2e0a;
+      --me-border: #4a7a10;
+      --them-bubble: #0d1e2e;
+      --them-border: #1a4a70;
+      --sys: #1a1a20;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    .app { position: relative; z-index: 1; width: 100%; max-width: 640px; height: 100vh; display: flex; flex-direction: column; }
+
+    /* ─── TELA DE ENTRADA ─── */
+    #screen-join {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem; gap: 0;
+      animation: fadeUp 0.5s ease;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.5rem, 10vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+    .logo span { color: var(--accent); }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 2.5rem;
+    }
+
+    .join-card {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .field-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .field-group { display: flex; flex-direction: column; }
+
+    input[type="text"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1rem;
+      padding: 0.75rem 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    input[type="text"]::placeholder { color: var(--muted); }
+
+    #room-input { letter-spacing: 0.1em; text-transform: uppercase; }
+
+    .btn-join {
+      margin-top: 0.5rem;
+      background: var(--accent);
+      color: #0d0d0f;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+      padding: 0.85rem;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-join:hover { opacity: 0.88; }
+    .btn-join:active { transform: scale(0.98); }
+
+    .hint {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .hint strong { color: var(--accent2); }
+
+    /* ─── TELA DO CHAT ─── */
+    #screen-chat {
+      flex: 1; display: none; flex-direction: column; height: 100vh;
+    }
+    #screen-chat.active { display: flex; }
+
+    .chat-header {
+      padding: 0.9rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .chat-room-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-transform: uppercase;
+      flex: 1;
+    }
+
+    .user-count {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .btn-leave {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-leave:hover { border-color: #c06060; color: #c06060; }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      scroll-behavior: smooth;
+    }
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg {
+      max-width: 80%;
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: none; } }
+
+    .msg.me { align-self: flex-end; }
+    .msg.them { align-self: flex-start; }
+    .msg.sys { align-self: center; max-width: 100%; }
+
+    .bubble {
+      padding: 0.6rem 0.85rem;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .msg.me .bubble {
+      background: var(--me-bubble);
+      border: 1px solid var(--me-border);
+      border-bottom-right-radius: 3px;
+    }
+    .msg.them .bubble {
+      background: var(--them-bubble);
+      border: 1px solid var(--them-border);
+      border-bottom-left-radius: 3px;
+    }
+
+    .msg-meta {
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+      display: flex;
+      gap: 0.4rem;
+    }
+    .msg.me .msg-meta { justify-content: flex-end; }
+    .msg-name { color: var(--accent2); }
+
+    .sys-pill {
+      background: var(--sys);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.25rem 0.8rem;
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .sys-pill .count { color: var(--accent); margin-left: 0.4rem; }
+
+    .input-bar {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    #msg-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.9rem;
+      padding: 0.65rem 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: none;
+    }
+    #msg-input:focus { border-color: var(--accent); }
+
+    .btn-send {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #0d0d0f;
+      cursor: pointer;
+      padding: 0.65rem 1rem;
+      font-size: 1.1rem;
+      transition: opacity 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .btn-send:hover { opacity: 0.85; }
+    .btn-send:active { transform: scale(0.95); }
+
+    @keyframes fadeUp { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform: none; } }
+
+    @media (max-width: 480px) {
+      .join-card { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TELA DE ENTRADA -->
+  <div id="screen-join">
+    <div class="logo">Bate<span>Papo</span></div>
+    <div class="tagline">chat temporário · sem rastros</div>
+
+    <div class="join-card">
+      <div class="field-group">
+        <div class="field-label">Seu nome</div>
+        <input type="text" id="name-input" placeholder="como quer ser chamado?" maxlength="20"/>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Código da sala</div>
+        <input type="text" id="room-input" placeholder="ex: TURMA42" maxlength="20"/>
+      </div>
+      <button class="btn-join" onclick="joinRoom()">Entrar na sala →</button>
+      <p class="hint">
+        Crie qualquer código e compartilhe com seus colegas.<br/>
+        <strong>As mensagens somem quando todos saem.</strong>
+      </p>
+    </div>
+  </div>
+
+  <!-- TELA DO CHAT -->
+  <div id="screen-chat">
+    <div class="chat-header">
+      <div class="dot"></div>
+      <div class="chat-room-name" id="header-room">—</div>
+      <div class="user-count" id="header-count">1 online</div>
+      <button class="btn-leave" onclick="leaveRoom()">sair</button>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-bar">
+      <input type="text" id="msg-input" placeholder="escreva algo..." maxlength="500" autocomplete="off"/>
+      <button class="btn-send" onclick="sendMessage()">↑</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let myName = '';
+
+  // ─── ENTRAR NA SALA ───
+  function joinRoom() {
+    const name = document.getElementById('name-input').value.trim();
+    const room = document.getElementById('room-input').value.trim();
+    if (!name) { alert('Digite seu nome!'); return; }
+    if (!room) { alert('Digite o código da sala!'); return; }
+
+    myName = name;
+    document.getElementById('header-room').textContent = '# ' + room.toUpperCase();
+
+    socket.emit('join', { roomCode: room, name });
+
+    document.getElementById('screen-join').style.display = 'none';
+    const chatScreen = document.getElementById('screen-chat');
+    chatScreen.style.display = 'flex';
+    chatScreen.classList.add('active');
+
+    document.getElementById('msg-input').focus();
+  }
+
+  // ─── SAIR DA SALA ───
+  function leaveRoom() {
+    location.reload();
+  }
+
+  // ─── ENVIAR MENSAGEM ───
+  function sendMessage() {
+    const input = document.getElementById('msg-input');
+    const text = input.value.trim();
+    if (!text) return;
+    socket.emit('message', text);
+    input.value = '';
+    input.focus();
+  }
+
+  // ─── RECEBER HISTÓRICO ───
+  socket.on('history', (msgs) => {
+    msgs.forEach(m => addMessage(m, false));
+    scrollToBottom();
+  });
+
+  // ─── RECEBER MENSAGEM ───
+  socket.on('message', (msg) => {
+    addMessage(msg, true);
+  });
+
+  // ─── MENSAGEM DO SISTEMA ───
+  socket.on('system', ({ text, count }) => {
+    const box = document.getElementById('messages');
+    const el = document.createElement('div');
+    el.className = 'msg sys';
+    el.innerHTML = `<div class="sys-pill">${text}<span class="count">${count} online</span></div>`;
+    box.appendChild(el);
+    document.getElementById('header-count').textContent = count + (count === 1 ? ' online' : ' online');
+    scrollToBottom();
+  });
+
+  function addMessage(msg, animate) {
+    const box = document.getElementById('messages');
+    const isMe = msg.name === myName;
+    const el = document.createElement('div');
+    el.className = 'msg ' + (isMe ? 'me' : 'them');
+    el.innerHTML = `
+      <div class="bubble">${escapeHtml(msg.text)}</div>
+      <div class="msg-meta">
+        ${!isMe ? `<span class="msg-name">${escapeHtml(msg.name)}</span>` : ''}
+        <span>${msg.time}</span>
+      </div>
+    `;
+    box.appendChild(el);
+    if (animate) scrollToBottom();
+  }
+
+  function scrollToBottom() {
+    const box = document.getElementById('messages');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function escapeHtml(t) {
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Enter para enviar
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.activeElement.id === 'msg-input') {
+      e.preventDefault();
+      sendMessage();
+    }
+    if (e.key === 'Enter' && document.activeElement.id !== 'msg-input') {
+      joinRoom();
+    }
+  });
+</script>
+</body>
+</html>
